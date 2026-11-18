@@ -53,3 +53,10 @@ Tested: syntax check + headless host simulation (bus, drop, glide, chests, loot,
 - **8 unique landmarks** (random spots per match seed): Lighthouse (rotating beam), Old Windmill, Fun Fair (ferris wheel), Water Tower, Giant Tree, Stone Ring, Radio Tower, Shipwreck. Each has chests; they show on the map.
 - **UI**: new left-aligned main menu over the 3D hero, styled lobby (room-code card, player chips, big start button), numeric HP/shield bars, panels behind HUD text, build hints. Fixed a leftover crosshair dot / filled-circle bug.
 - Untested: real rendering/performance and two-machine play.
+
+## v7 changes
+- **Shockwave Hammer** (new, rechargeable: 3 charges, +1 per ~6s): slam launches you up/forward and blasts nearby enemies away with damage; cyan shockwave ring + light flash. Found in chests/floor loot.
+- **Movement items tuned**: Grapple has a visible rope (all players see it), longer range, faster pull; Blink has 4 charges, faster cooldown and a particle trail; Jetpack has more thrust, better air control and bigger flames; slide unchanged.
+- **Visuals**: glowing streak tracers that travel to the target, soft round particles (was squares), muzzle/impact/explosion light flashes, hit-marker colour on the crosshair.
+- **Build mode with preview**: press F/V/B to pick wall/floor/ramp, a translucent outline shows exactly where it will go (green = ok, red = blocked or no mats), click to place, right-click or 1-5 to exit.
+- Untested: real rendering/performance and two-machine play.
