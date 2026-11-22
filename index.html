@@ -360,6 +360,10 @@ input[type=range]{accent-color:#ffe14d;cursor:pointer}
 #bpbar .n{position:absolute;left:6px;top:3px;font:italic 900 13px Impact,'Arial Narrow',system-ui}
 #bpbar .ic{font-size:26px;line-height:30px}#bpbar .nm{font:900 10px system-ui;letter-spacing:1px;margin-top:1px}
 @media(max-width:1100px){#bpbar .bp{width:52px;height:52px}#bpbar .ic{font-size:20px}}
+
+/* ===== Multibind rows ===== */
+.kr .kb2{display:flex;gap:6px}.kr .kb2 button{min-width:78px}.kr .kb2 button.on{outline:2px solid #ffe14d}
+.kh{font-size:12px;opacity:.8;margin-bottom:8px;line-height:1.4}.kh b{color:#ffe14d}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="kbp" class="panel hide" style="z-index:9"><h2>CONTROLS</h2><small>Click a key, then press the new one. For a mouse button, click empty space in this panel. Esc cancels. Saved in this browser.</small><div id="kbl"></div><div><button id="kbR">RESET</button> <button id="kbX">CLOSE</button></div></div>
@@ -1687,17 +1691,28 @@ function fxBoom(p){sfx('boom',p[0],p[2]);mzl.position.set(p[0],p[1]+1,p[2]);mzl.
 const selSlot=n=>{if(!playing||over)return;if(host)setSl(ents[me],n);else gsend({t:'x',k:'sl',v:n})};
 const act=k=>{if(!playing||over)return;if(k=='em'){playEmote(EQ[0]);return}if(host){const e=ents[me];if(k=='e')interact(e);else if(k=='r')reload(e);else if(k=='em')e.em=4;else useHeal(e,k)}else gsend({t:'x',k})};
 const KBD={fire:['Shoot / place build','Mouse0'],aim:['Aim down sights / cancel build','Mouse2'],fwd:['Forward','KeyW'],back:['Back','KeyS'],left:['Left','KeyA'],right:['Right','KeyD'],ping:['Ping location (team)','KeyY'],sprint:['Sprint','ShiftLeft'],jump:['Jump / leave bus','Space'],slide:['Slide','KeyL'],crouch:['Crouch','ControlLeft'],use:['Open chest / pick up','KeyE'],reload:['Reload','KeyR'],heal:['Heal (auto pick)','KeyH'],shield:['Shield (auto pick)','KeyJ'],c0:['Use Bandage','Digit6'],c1:['Use Medkit','Digit7'],c2:['Use Mini Shield','Digit8'],c3:['Use Big Shield','Digit9'],bmode:['Build mode (toggle)','KeyQ'],build:['Wall','KeyZ'],floor:['Floor','KeyX'],ramp:['Stairs','KeyC'],edit:['Edit build (hold)','KeyG'],emote:['Emote','KeyB'],map:['Big map','KeyM'],qual:['Graphics quality','KeyO'],s0:['Slot 1 (pickaxe)','Digit1'],s1:['Slot 2','Digit2'],s2:['Slot 3','Digit3'],s3:['Slot 4','Digit4'],s4:['Slot 5','Digit5'],panel:['Controls menu','KeyK']};
-const KB={};for(const k in KBD)KB[k]=KBD[k][1];
-const KB2={};try{const saved=JSON.parse(localStorage.getItem('ldkb')||'{}');for(const k in saved){if(Array.isArray(saved[k])){KB[k]=saved[k][0]||KBD[k][1];KB2[k]=saved[k][1]||''}else KB[k]=saved[k]}}catch(e){}
-const hasBind=(k,c)=>KB[k]===c||KB2[k]===c;const keyDown=k=>!!(keys[KB[k]]||(KB2[k]&&keys[KB2[k]]));
-let rb=null;const nice=c=>/^Mouse\d/.test(c)?['Left Click','Middle Click','Right Click','Mouse 4','Mouse 5'][+c[5]]||c:c.replace(/^Key|^Digit/,'').replace('ShiftLeft','Shift').replace('ControlLeft','Ctrl');
-function kbDraw(){const L=$('kbl');L.innerHTML='';for(const k in KBD){const r=document.createElement('div');r.className='kr';r.innerHTML='<span>'+KBD[k][0]+'</span>';for(let slot=0;slot<2;slot++){const b=document.createElement('button');b.textContent=rb===k+':'+slot?'press a key...':nice(slot?KB2[k]||'—':KB[k]);b.onclick=()=>{rb=k+':'+slot;kbDraw()};r.appendChild(b)}L.appendChild(r)}}
+const KB={};for(const k in KBD)KB[k]=KBD[k][1];try{Object.assign(KB,JSON.parse(localStorage.getItem('ldkb')||'{}'))}catch(e){}
+/* ---- multibind: every action has a primary (KB) and a secondary (KB2) bind ---- */
+const KB2D={fwd:'ArrowUp',back:'ArrowDown',left:'ArrowLeft',right:'ArrowRight',edit:'Mouse3',ramp:'Mouse4'},KB2={};for(const k in KBD)KB2[k]=KB2D[k]||'';try{Object.assign(KB2,JSON.parse(localStorage.getItem('ldkb2')||'{}'))}catch(e){}
+let ALT={};function kbRebuild(){ALT={};for(const k in KB2)if(KB2[k]&&KB[k])ALT[KB2[k]]=KB[k]}kbRebuild();
+function kbTr(e){if(rb)return;const p=ALT[e.code];if(p)Object.defineProperty(e,'code',{value:p})}
+addEventListener('keydown',kbTr,true);addEventListener('keyup',kbTr,true);
+function mAct(e,d){const c='Mouse'+e.button,p=ALT[c];if(p&&!/^Mouse/.test(p)){window.dispatchEvent(new KeyboardEvent(d?'keydown':'keyup',{code:p}));return}pressAct(p||c,d)}
+function kbAssign(a,s,c){const old=s?KB2[a]:KB[a];if(old===c||(s&&KB[a]==c))return;
+ for(const b in KBD){if(b==a)continue;if(KB[b]==c){if(!s&&old)KB[b]=old;else{KB[b]=KB2[b]||'';KB2[b]=''}}else if(KB2[b]==c)KB2[b]=(s&&old)?old:''}
+ if(!s&&KB2[a]==c)KB2[a]=old&&old!=c?old:'';
+ if(s)KB2[a]=c;else KB[a]=c;kbSave()}
+let rb=null,rbs=0;const nice=c=>/^Mouse\d/.test(c)?['Left Click','Middle Click','Right Click','Mouse 4','Mouse 5'][+c[5]]||c:c.replace(/^Key|^Digit/,'').replace('ShiftLeft','Shift').replace('ControlLeft','Ctrl');
+function kbDraw(){const L=$('kbl');L.innerHTML='<div class="kh">Every action has two binds. Click a box, then press a key or mouse button. <b>Backspace</b> clears the second bind.</div>';
+ for(const k in KBD){const r=document.createElement('div');r.className='kr';r.innerHTML='<span>'+KBD[k][0]+'</span>';const w=document.createElement('div');w.className='kb2';
+  for(let q=0;q<2;q++){const b=document.createElement('button'),v=q?KB2[k]:KB[k],on=rb==k&&rbs==q;b.textContent=on?'press a key...':(v?nice(v):(q?'\u2014':'Unbound'));if(on)b.className='on';b.onclick=()=>{rb=k;rbs=q;kbDraw()};w.appendChild(b)}
+  r.appendChild(w);L.appendChild(r)}}
 function helpHud(){$('hf').textContent=nice(KB.fire)+' shoot \u00b7 '+nice(KB.aim)+' aim'}
-function kbSave(){try{const out={};for(const k in KBD)out[k]=[KB[k],KB2[k]||''];localStorage.setItem('ldkb',JSON.stringify(out))}catch(e){}helpHud()}
+function kbSave(){try{localStorage.setItem('ldkb',JSON.stringify(KB));localStorage.setItem('ldkb2',JSON.stringify(KB2))}catch(e){}kbRebuild();helpHud()}
 function pressAct(c,down){if(!playing||over||!$('kbp').classList.contains('hide'))return;
- if(down){if(SET.tsp&&hasBind('sprint',c))GT.sp^=1;if(SET.tcr&&hasBind('crouch',c))GT.cr^=1}
- if(hasBind('fire',c)){if(down&&bm>=0){if(placeNow(1))TURBO=1}else{if(!down)TURBO=0;inp.fire=down?1:0}}
- if(hasBind('aim',c)){if(down&&bm>=0)bm=-1;else if(SET.tads){if(down)inp.ads^=1}else inp.ads=down?1:0}}
+ if(down){if(SET.tsp&&c==KB.sprint)GT.sp^=1;if(SET.tcr&&c==KB.crouch)GT.cr^=1}
+ if(c==KB.fire){if(down&&bm>=0){placeNow(0);TURBO=1}else{if(!down)TURBO=0;inp.fire=down?1:0}}
+ if(c==KB.aim){if(down&&bm>=0)bm=-1;else if(SET.tads){if(down)inp.ads^=1}else inp.ads=down?1:0}}
 function kbToggle(){const hid=$('kbp').classList.toggle('hide');rb=null;if(!hid){kbDraw();document.exitPointerLock&&document.exitPointerLock()}}
 $('bKeys').onclick=kbToggle;
 const OPT={o:['Crimson','Azure','Gold','Jade','Violet','Blaze','Frost','Onyx'],h:['No Hat','Crown','Cap','Halo'],b:['No Bling','Wings','Cape','Tanks']};
@@ -1717,24 +1732,24 @@ $('sFov').oninput=e=>{SET.fov=+e.target.value;sv()};$('sSens').oninput=e=>{SET.s
  {const d=row('Crosshair colour','<input type="color" value="'+SET.xc+'">');d.querySelector('input').oninput=e=>{SET.xc=e.target.value;$('xh').style.borderColor=SET.xc;sv()};add(d)}
  {const d=row('Crosshair size','<input type="range" min="50" max="200" value="'+(SET.xs*100|0)+'">');d.querySelector('input').oninput=e=>{SET.xs=e.target.value/100;sv()};add(d)}}
 $('xh').style.borderColor=SET.xc;
-$('pRes').onclick=()=>{$('pause').classList.add('hide');cv.requestPointerLock()};progUI();$('kbX').onclick=kbToggle;$('kbR').onclick=()=>{for(const k in KBD){KB[k]=KBD[k][1];KB2[k]=''}kbSave();rb=null;kbDraw()};
+$('pRes').onclick=()=>{$('pause').classList.add('hide');cv.requestPointerLock()};progUI();$('kbX').onclick=kbToggle;$('kbR').onclick=()=>{for(const k in KBD){KB[k]=KBD[k][1];KB2[k]=KB2D[k]||''}kbSave();rb=null;kbDraw()};
 addEventListener('keydown',e=>{const c=e.code;
- if(rb){e.preventDefault();if(c!='Escape'){const [k,slot]=rb.split(':');if(+slot===0)KB[k]=c;else KB2[k]=c;kbSave()}rb=null;kbDraw();return}
+ if(rb){e.preventDefault();if(c=='Backspace'||c=='Delete'){if(rbs){KB2[rb]='';kbSave()}}else if(c!='Escape')kbAssign(rb,rbs,c);rb=null;kbDraw();return}
  if(e.target&&e.target.tagName=='INPUT'){if(c=='Enter'&&e.target.id=='chi')sendChat();return}
- if(hasBind('panel',c)){kbToggle();return}
+ if(c==KB.panel){kbToggle();return}
  if(!$('kbp').classList.contains('hide'))return;
  keys[c]=1;if(!e.repeat)pressAct(c,1);
- if((hasBind('build',c)||hasBind('floor',c)||hasBind('ramp',c)||hasBind('bmode',c))&&playing&&!over){if(hasBind('bmode',c)){if(bm>=0){LBM=bm;bm=-1}else bm=LBM}else{bm=hasBind('floor',c)?1:hasBind('ramp',c)?2:0;LBM=bm}}
- else if(hasBind('use',c))act('e');else if(hasBind('reload',c)){if(bm>=0&&playing&&!over)BROT=(BROT+1)&3;else act('r')}else if(hasBind('heal',c))act('h');else if(hasBind('shield',c))act('j');
- else if(hasBind('c0',c))act('u0');else if(hasBind('c1',c))act('u1');else if(hasBind('c2',c))act('u2');else if(hasBind('c3',c))act('u3');
- else if(hasBind('emote',c))emoOpen(1);else if(hasBind('qual',c))cycleQ();else if(hasBind('map',c))$('mm').classList.toggle('big');else if(hasBind('ping',c))pingLoc();
- else for(let k=0;k<5;k++)if(hasBind('s'+k,c)){bm=-1;selSlot(k)}});
-addEventListener('keyup',e=>{if(hasBind('emote',e.code))emoOpen(0);keys[e.code]=0;pressAct(e.code,0)});addEventListener('blur',()=>{for(const k in keys)keys[k]=0;inp.fire=0;inp.ads=0;TURBO=0});document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement){inp.fire=0;inp.ads=0;if(playing&&!over&&$('kbp').classList.contains('hide')&&!(ents[me]&&!ents[me].alive))$('pause').classList.remove('hide')}});
+ if((c==KB.build||c==KB.floor||c==KB.ramp||c==KB.bmode)&&playing&&!over){if(c==KB.bmode){if(bm>=0){LBM=bm;bm=-1}else bm=LBM}else{bm=c==KB.floor?1:c==KB.ramp?2:0;LBM=bm}}
+ else if(c==KB.use)act('e');else if(c==KB.reload){if(bm>=0&&playing&&!over)BROT=(BROT+1)&3;else act('r')}else if(c==KB.heal)act('h');else if(c==KB.shield)act('j');
+ else if(c==KB.c0)act('u0');else if(c==KB.c1)act('u1');else if(c==KB.c2)act('u2');else if(c==KB.c3)act('u3');
+ else if(c==KB.emote)emoOpen(1);else if(c==KB.qual)cycleQ();else if(c==KB.map)$('mm').classList.toggle('big');else if(c==KB.ping)pingLoc();
+ else for(let k=0;k<5;k++)if(c==KB['s'+k]){bm=-1;selSlot(k)}});
+addEventListener('keyup',e=>{if(e.code==KB.emote)emoOpen(0);keys[e.code]=0;pressAct(e.code,0)});addEventListener('blur',()=>{for(const k in keys)keys[k]=0;inp.fire=0;inp.ads=0});document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement){inp.fire=0;inp.ads=0;if(playing&&!over&&$('kbp').classList.contains('hide')&&!(ents[me]&&!ents[me].alive))$('pause').classList.remove('hide')}});
 cv.addEventListener('click',()=>playing&&!(ents[me]&&!ents[me].alive)&&cv.requestPointerLock());
 addEventListener('mousemove',e=>{if(emoW){wx=cl(wx+e.movementX,-130,130);wy=cl(wy+e.movementY,-130,130);emoHi();return}if(document.pointerLockElement==cv){inp.yaw-=e.movementX*.0025*SET.sens*(inp.ads?SET.ads*adsMul():1);inp.pitch=cl(inp.pitch-e.movementY*.0025*SET.sens*(inp.ads?SET.ads*adsMul():1),-1.2,1.2)}});
-addEventListener('mousedown',e=>{if(rb){if(e.button==0&&e.target.closest&&e.target.closest('#kbl button,#kbR,#kbX'))return;e.preventDefault();const c='Mouse'+e.button;for(const k in KB)if(KB[k]==c&&k!=rb)KB[k]=KB[rb];KB[rb]=c;kbSave();rb=null;kbDraw();return}
- if(document.pointerLockElement!=cv)return;e.preventDefault();pressAct('Mouse'+e.button,1)});
-addEventListener('mouseup',e=>{if(e.button>2)e.preventDefault();pressAct('Mouse'+e.button,0)});addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('mousedown',e=>{if(rb){if(e.button==0&&e.target.closest&&e.target.closest('#kbl button,#kbR,#kbX'))return;e.preventDefault();kbAssign(rb,rbs,'Mouse'+e.button);rb=null;kbDraw();return}
+ if(document.pointerLockElement!=cv)return;e.preventDefault();mAct(e,1)});
+addEventListener('mouseup',e=>{if(e.button>2)e.preventDefault();mAct(e,0)});addEventListener('contextmenu',e=>e.preventDefault());
 $('pname').value=myName;$('jname').value=myName;helpHud();
 $('pname').oninput=()=>{myName=clean($('pname').value,14)||myName;$('jname').value=$('pname').value;saveName()};
 $('bHost').onclick=()=>{myName=clean($('pname').value,14)||myName;saveName();if(!startHostNet())return;host=true;me=1;$('chat').innerHTML='';$('hostCtl').classList.remove('hide');$('bReady').classList.add('hide');showPanel('lobby');chatAdd('','Share the room code or invite link with friends. Keep this tab open: it is the server.',1);lobby()};
@@ -1773,7 +1788,7 @@ const hero={st:{mode:0,asp:0,ph:0,em:0,id:7,aw:1,alive:true,y:0},mesh:mkChar(1,'
 let preB=null;setInterval(()=>{if(preOn&&playing){if(!preB){preB=document.createElement('div');preB.style.cssText='position:fixed;left:50%;top:12%;transform:translateX(-50%);text-align:center;font:900 34px system-ui;color:#fff;text-shadow:0 3px 12px #000;z-index:6;pointer-events:none';document.body.appendChild(preB)}if(!host)preT=Math.max(0,preT-.1);preB.style.display='block';preB.innerHTML='MATCH STARTS IN '+Math.ceil(preT)+'<br><span style="font-size:18px;color:#8fffa8">STARTER ISLAND - SAFE ZONE, NO DAMAGE</span>'}else if(preB)preB.style.display='none'},100);
 function loop(now){requestAnimationFrame(loop);FN++;ALC=null;const dt=Math.min(.05,(now-last)/1000);last=now;const T=now/1000;swayU.value=T;fpsA+=(dt-fpsA)*.05;if(playing&&GFX.auto&&quality>0&&T-aqT>5&&fpsA>1/26){aqT=T;setQ(quality-1)}
  if(playing){
-  inp.f=(keyDown('fwd')?1:0)-(keyDown('back')?1:0);inp.r=(keyDown('right')?1:0)-(keyDown('left')?1:0);inp.jump=keyDown('jump')?1:0;if(SET.tsp&&!inp.f&&!inp.r)GT.sp=0;inp.sp=SET.tsp?GT.sp:(keyDown('sprint')?1:0);inp.sl=keyDown('slide')?1:0;inp.cr=SET.tcr?GT.cr:(keyDown('crouch')?1:0);
+  inp.f=(keys[KB.fwd]?1:0)-(keys[KB.back]?1:0);inp.r=(keys[KB.right]?1:0)-(keys[KB.left]?1:0);inp.jump=keys[KB.jump]?1:0;if(SET.tsp&&!inp.f&&!inp.r)GT.sp=0;inp.sp=SET.tsp?GT.sp:(keys[KB.sprint]?1:0);inp.sl=keys[KB.slide]?1:0;inp.cr=SET.tcr?GT.cr:(keys[KB.crouch]?1:0);
   const my=ents[me];if(my&&!my.alive&&document.pointerLockElement)document.exitPointerLock();{const dv=Object.values(veh).find(v=>v.drv==me);if(dv&&my&&my.alive){const d=((dv.yaw-inp.yaw+Math.PI)%PI2+PI2)%PI2-Math.PI;inp.yaw+=d*Math.min(1,dt*1.6)}}
   if(host&&!over)hostTick(dt);
   else if(!host&&my&&!over){
@@ -2194,7 +2209,7 @@ function throwReq(){const m=ents[me];if(!m||!m.alive||m.mode)return;const cw=cur
  if(cw&&cw.t>=21)k=cw.t-21;else for(let i=1;i<5;i++){const o=m.inv.s[i];if(o&&o.t>=21){k=o.t-21;break}}
  if(k<0)return;if(host)throwG(m,k);else gsend({t:'x',k:'g',v:k})}
 addEventListener('keydown',ev=>{if(ev.repeat||!playing||over)return;if(ev.target&&/INPUT|TEXTAREA/.test(ev.target.tagName))return;if(!$$('kbp').classList.contains('hide'))return;
- if(hasBind('gren',ev.code))throwReq()});
+ if(ev.code==KB.gren)throwReq()});
 
 /* ---------- per-frame visuals / HUD ---------- */
 let last=performance.now();
@@ -2347,19 +2362,19 @@ function setFloorEd(p,ed){ed=ed|0;const mk=ed>=16?(ed-16)&15:0;p.ed=ed;p.fm=mk;i
   const t=((ax==0?w.z-o.z:w.x-o.x))/dd;if(t<=0||t>30)return -1;const u=(ax==0?o.x+v3.x*t-w.x:o.z+v3.z*t-w.z),v=o.y+v3.y*t-w.y0;
   if(u<-2||u>=2||v<0||v>=3)return -1;return Math.floor(v)*3+Math.min(2,Math.floor((u+2)*.75))}
  const stop=e=>{e.preventDefault();e.stopImmediatePropagation()},setBit=(i,v)=>{if(((ED.mask>>i)&1)===v)return;ED.mask=v?(ED.mask|(1<<i)):(ED.mask&~(1<<i));sfx('step')};
- for(const ty of['mousedown','mouseup','pointerdown','pointerup','click'])addEventListener(ty,e=>{if(!ED.on)return;
+ for(const ty of['mousedown','mouseup','pointerdown','pointerup','click'])addEventListener(ty,e=>{if(!ED.on||e.button>2)return;
   if(ty=='mousedown'&&e.button==2)close(0);
   else if(ty=='mousedown'&&e.button==0){ED.hv=hover();if(ED.hv>=0){ED.dv=((ED.mask>>ED.hv)&1)?0:1;setBit(ED.hv,ED.dv);ED.drag=1}}
   else if(ty=='mouseup'&&e.button==0)ED.drag=0;
   stop(e)},true);
  addEventListener('mousemove',()=>{if(!ED.on||!ED.drag)return;const h=hover();if(h>=0){ED.hv=h;setBit(h,ED.dv)}},true);
  addEventListener('keydown',e=>{if(e.repeat||!playing||over||(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName)))return;
-  if(hasBind('edit',e.code)){stop(e);if(ED.on)close(1);else if(open()){ED.hold=1;ED.t0=performance.now()}}
+  if(e.code==KB.edit){stop(e);if(ED.on)close(1);else if(open()){ED.hold=1;ED.t0=performance.now()}}
   else if(ED.on&&e.code=='Enter'){stop(e);close(1)}
   else if(ED.on&&e.code=='KeyR'){stop(e);ED.mask=0;sfx('step')}
   else if(ED.on&&ED.t=='w'&&/^Digit[123]$/.test(e.code)){stop(e);ED.mask=PM[+e.code[5]];sfx('step')}
   else if(ED.on&&([KB.build,KB.floor,KB.ramp,KB.bmode,'KeyT'].includes(e.code)||/^Digit/.test(e.code)))stop(e)},true);
- addEventListener('keyup',e=>{if(hasBind('edit',e.code)&&ED.on&&ED.hold){ED.hold=0;if(performance.now()-ED.t0>260){stop(e);close(1)}}},true);
+ addEventListener('keyup',e=>{if(e.code==KB.edit&&ED.on&&ED.hold){ED.hold=0;if(performance.now()-ED.t0>260){stop(e);close(1)}}},true);
  btn.onclick=()=>{ED.on?close(1):open()};
  const _h2=hmsg;hmsg=function(p,m){if(m&&m.t=='em'){p.last=performance.now();const e=ents[p.id],w=walls[m.id]||plats[m.id],ed=m.ed|0;
   if(e&&e.alive&&w&&ed>=0&&ed<=16+511&&Math.hypot(w.x-e.x,w.z-e.z)<40&&(w.wall||w.k==1)){w.wall?setEd(w,ed):setFloorEd(w,ed);bcast({t:'we',id:w.id,ed:w.ed})}return}return _h2.apply(this,arguments)};
@@ -2371,15 +2386,13 @@ function setFloorEd(p,ed){ed=ed|0;const mk=ed>=16?(ed-16)&15:0;p.ed=ed;p.fm=mk;i
  window.__ED=ED}
 
 /* ---------- Fortnite-style build controls: build mode, piece keys, turbo build, rotate, wheel, piece bar ---------- */
-function placeNow(chk){const m=ents[me];if(!m||!m.alive||m.mode||bm<0)return false;
- m.bmt=BMAT;const p=bpos(m,bm);if(!bvalid(m,bm,p))return false;
- if(host)build(m,bm);else gsend({t:'b',k:bm,mt:BMAT,br:BROT});
- return true}
+function placeNow(chk){const m=ents[me];if(!m||!m.alive||m.mode||bm<0)return;
+ if(host){m.bmt=BMAT;build(m,bm)}else{if(chk&&!bvalid(m,bm,bpos(m,bm)))return;gsend({t:'b',k:bm,mt:BMAT,br:BROT})}}
 setInterval(()=>{if(!TURBO)return;if(document.pointerLockElement!==cv||bm<0||!playing||over){if(document.pointerLockElement!==cv)TURBO=0;return}placeNow(1)},55);
 addEventListener('wheel',e=>{if(bm>=0&&playing&&!over&&!inp.ads){bm=(bm+(e.deltaY>0?1:2))%3;LBM=bm;e.preventDefault();e.stopImmediatePropagation()}},{capture:true,passive:false});
 {const bar=document.createElement('div');bar.id='bpbar';document.body.appendChild(bar);const PN=['WALL','FLOOR','STAIRS'],PI=['🧱','⬜','🪜'];let last='';
  setInterval(()=>{try{const m=ents[me],on=playing&&!over&&bm>=0&&m&&m.alive&&!m.mode;bar.style.display=on?'flex':'none';const hb=$('hb');if(hb)hb.style.visibility=on?'hidden':'';if(!on)return;
-  const ks=[KB.build,KB.floor,KB.ramp],h=[0,1,2].map(i=>'<div class="bp'+(i===bm?' cur':'')+'"><span class=n>'+nice(ks[i])+(KB2[['build','floor','ramp'][i]]?' / '+nice(KB2[['build','floor','ramp'][i]]):'')+'</span><span class=ic>'+PI[i]+'</span><span class=nm>'+PN[i]+'</span></div>').join('')+'<div class="bp rot"><span class=n>R</span><span class=ic>↻</span><span class=nm>ROTATE</span></div>';
+  const ks=[KB.build,KB.floor,KB.ramp],h=[0,1,2].map(i=>'<div class="bp'+(i===bm?' cur':'')+'"><span class=n>'+nice(ks[i])+'</span><span class=ic>'+PI[i]+'</span><span class=nm>'+PN[i]+'</span></div>').join('')+'<div class="bp rot"><span class=n>R</span><span class=ic>↻</span><span class=nm>ROTATE</span></div>';
   if(h!==last){bar.innerHTML=h;last=h}}catch(x){}},80)}
 /* test / debug hooks */
 window.LDX={gSlot,A,throwG,callDrop,setGlide,fallHurt,gMove,status,openCrate,crateStep,addWall,setFloorEd,fSolid,plats,walls};
